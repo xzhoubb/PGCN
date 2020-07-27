@@ -1,0 +1,23 @@
+model epoch 10 loss: 1.627929000627427
+File parsed. Time:2.32
+Dict constructed. Time:11.17
+initiating evaluation of detection results ['result']
+Merge detection scores from 1 sources...
+Done.
+File parsed. Time:2.29
+Dict constructed. Time:12.18
+Preprocessing detections...
+Done.
+Performing nms...
+NMS Done.
+Performing location regression...
+Regression Done.
+Calling mean AP calculator from toolkit with 32 workers...
+Evaluation done.
+
+
++Detection Performance on thumos14------+--------+--------+--------+--------+--------+--------+---------+
+| IoU thresh | 0.10   | 0.20   | 0.30   | 0.40   | 0.50   | 0.60   | 0.70   | 0.80   | 0.90   | Average |
++------------+--------+--------+--------+--------+--------+--------+--------+--------+--------+---------+
+| mean AP    | 0.5902 | 0.5677 | 0.5325 | 0.4686 | 0.3852 | 0.2718 | 0.1521 | 0.0545 | 0.0067 | 0.3366  |
++------------+--------+--------+--------+--------+--------+--------+--------+--------+--------+---------+
