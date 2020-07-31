@@ -6,12 +6,14 @@ import pandas as pd
 import time
 
 def I3D_Pooling(prop_indices, vid, ft_path, n_frame, n_seg=1):
-
-    ft_tensor = torch.load(os.path.join(ft_path, vid)).float()
+    # n_frame 1572
+    #ft_tensor = torch.load(os.path.join(ft_path, vid)).float() # torch.Size([189, 1024])
+    ft_array = np.load(os.path.join(ft_path, vid+'.npy'))
+    ft_tensor = torch.from_numpy(ft_array).float()
     fts_all_act = []
     fts_all_comp = []
 
-    for prop in prop_indices:
+    for prop in prop_indices: # (168,)
 
         act_s = prop[0]
         act_e = prop[1]
@@ -27,12 +29,12 @@ def I3D_Pooling(prop_indices, vid, ft_path, n_frame, n_seg=1):
         comp_ft = [start_ft, act_ft, end_ft]
         comp_ft = torch.cat(comp_ft, dim=0)
 
-        fts_all_act.append(act_ft)
-        fts_all_comp.append(comp_ft)
+        fts_all_act.append(act_ft) # 1024
+        fts_all_comp.append(comp_ft) # 3072
 
 
-    fts_all_act = torch.stack(fts_all_act)
-    fts_all_comp = torch.stack(fts_all_comp)
+    fts_all_act = torch.stack(fts_all_act) # torch.Size([168, 1024])
+    fts_all_comp = torch.stack(fts_all_comp) # torch.Size([168, 3072])
 
     return fts_all_act, fts_all_comp
 
@@ -44,37 +46,38 @@ def feature_pooling(start_ind, end_ind, vid, n_frame, n_seg, type, ft_tensor):
     fts = []
     fts_all = []
 
-    offsets, average_duration = sample_indices(start_ind, end_ind, n_seg)
-
-    ft_num = ft_tensor.size()[0]
+    offsets, average_duration = sample_indices(start_ind, end_ind, n_seg) # n_seg means seg of one prop
+    # offset:0, average_duration: end-start+1
+    ft_num = ft_tensor.size()[0] # 189
 
     for off in offsets:
 
         fts = []
 
-        start_unit = int(min(ft_num-1, np.floor(float(start_ind+off)/interval)))
+        start_unit = int(min(ft_num-1, np.floor(float(start_ind+off)/interval))) 
         end_unit = int(min(ft_num-2, np.ceil(float(end_ind-clip_length)/interval)))
+                   # do not use the last few frames not divisible by 64
 
         if start_unit < end_unit:
-            fts.append(torch.max(ft_tensor[start_unit: end_unit+1, :], 0)[0])
+            fts.append(torch.max(ft_tensor[start_unit: end_unit+1, :], 0)[0]) # (1024,) max_pooling
         else:
-            fts.append(ft_tensor[start_unit])
+            fts.append(ft_tensor[start_unit]) # (1024,)
         fts_all.append(fts[0])
 
     fts_all = torch.stack(fts_all)
 
-    return fts_all.squeeze()
+    return fts_all.squeeze() # torch.Size([1024])
 
 def sample_indices(start, end, num_seg):
     """
     :param record: VideoRecord
     :return: list
     """
-    valid_length = end - start
+    valid_length = end - start # 127 frame
     average_duration = (valid_length + 1) // num_seg
     if average_duration > 0:
         # normal cases
-        offsets = np.multiply(list(range(num_seg)), average_duration)
+        offsets = np.multiply(list(range(num_seg)), average_duration) # array([0])
     elif valid_length > num_seg:
         offsets = np.sort(randint(valid_length, size=num_seg))
     else:

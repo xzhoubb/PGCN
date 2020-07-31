@@ -31,7 +31,7 @@ def segment_tiou(target_segments, test_segments):
     -------
     tiou : ndarray
         2-dim array [m x n] with IOU ratio.
-    Note: It assumes that target-segments are more scarce that test-segments
+    Note: It assumes that target-segments are more scarce than test-segments
     """
     if target_segments.ndim != 2 or test_segments.ndim != 2:
         raise ValueError('Dimension of arguments is incorrect')
@@ -78,7 +78,7 @@ def segment_distance(target_segments, test_segments):
 
     for i in range(m):
         target_center = target_centers[i]
-        distance = np.abs(test_centers - target_center)
+        distance = np.abs(test_centers - target_center) # (n,)
 
         tt1 = np.maximum(target_segments[i, 1], test_segments[:, 1])
         tt2 = np.minimum(target_segments[i, 0], test_segments[:, 0])

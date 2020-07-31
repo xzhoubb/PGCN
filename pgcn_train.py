@@ -30,7 +30,7 @@ best_loss = 100
 cudnn.benchmark = True
 pin_memory = True
 os.environ['CUDA_DEVICE_ORDER'] = "PCI_BUS_ID"
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 def main():
     global args, best_loss, writer, adj_num, logger
@@ -60,7 +60,8 @@ def main():
     """construct model"""
     model = PGCN(model_configs, graph_configs)
     policies = model.get_optim_policies()
-    model = torch.nn.DataParallel(model, device_ids=args.gpus).cuda()
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus))).cuda()
+    print ("train by gpu: ", ','.join([str(i) for i in list(range(args.gpus))]))
 
     if args.resume:
         if os.path.isfile(args.resume):
@@ -77,12 +78,12 @@ def main():
     """construct dataset"""
     train_loader = torch.utils.data.DataLoader(
         PGCNDataSet(dataset_configs, graph_configs,
-                    prop_file=dataset_configs['train_prop_file'],
-                    prop_dict_path=dataset_configs['train_dict_path'],
-                    ft_path=dataset_configs['train_ft_path'],
-                    epoch_multiplier=dataset_configs['training_epoch_multiplier'],
+                    prop_file=dataset_configs['train_prop_file'], # 'data/bsn_train_proposal_list.txt'
+                    prop_dict_path=dataset_configs['train_dict_path'], # 'data/thumos14_train_prop_dict.pkl'
+                    ft_path=dataset_configs['train_ft_path'], # 'data/THUMOS14/I3D_video_level/Rgb_TrainPJ2_All'
+                    epoch_multiplier=dataset_configs['training_epoch_multiplier'], # 20
                     test_mode=False),
-        batch_size=args.batch_size, shuffle=True,
+        batch_size=args.batch_size, shuffle=True, # bs 32
         num_workers=args.workers, pin_memory=True, drop_last=True)  # in training we drop the last incomplete minibatch
 
     val_loader = torch.utils.data.DataLoader(

@@ -20,7 +20,7 @@ from ops.utils import get_configs
 # options
 parser = argparse.ArgumentParser(
     description="Evaluate detection performance metrics")
-parser.add_argument('dataset', type=str, choices=['activitynet1.2', 'thumos14'])
+parser.add_argument('dataset', type=str, choices=['activitynet1.2', 'thumos14','tianchi'])
 parser.add_argument('detection_pickles', type=str, nargs='+')
 parser.add_argument('--nms_threshold', type=float, default=None)
 parser.add_argument('--no_regression', default=False, action="store_true")
@@ -38,18 +38,18 @@ model_configs = configs["model_configs"]
 graph_configs = configs["graph_configs"]
 num_class = model_configs['num_class']
 
-nms_threshold = args.nms_threshold if args.nms_threshold else configs['evaluation']['nms_threshold']
-top_k = args.top_k if args.top_k else configs['evaluation']['top_k']
+nms_threshold = args.nms_threshold if args.nms_threshold else configs['evaluation']['nms_threshold'] # 0.35
+top_k = args.top_k if args.top_k else configs['evaluation']['top_k'] # 2000
 
 print("initiating evaluation of detection results {}".format(args.detection_pickles))
 score_pickle_list = []
 for pc in args.detection_pickles:
-    score_pickle_list.append(pickle.load(open(pc, 'rb')))
+    score_pickle_list.append(pickle.load(open(pc, 'rb'))) # score_pickle_list[0] -->save_dict
 
 if args.score_weights:
     weights = np.array(args.score_weights) / sum(args.score_weights)
 else:
-    weights = [1.0/len(score_pickle_list) for _ in score_pickle_list]
+    weights = [1.0/len(score_pickle_list) for _ in score_pickle_list] # [1.0]
 
 
 def merge_scores(vid):
@@ -59,11 +59,11 @@ def merge_scores(vid):
         else:
             return None
 
-    arrays = [pc[vid] for pc in score_pickle_list]
+    arrays = [pc[vid] for pc in score_pickle_list] # save_dict[vid]
     act_weights = weights
     comp_weights = weights
     reg_weights = weights
-    rel_props = score_pickle_list[0][vid][0]
+    rel_props = score_pickle_list[0][vid][0] # array--(num_props, 2)
 
     return rel_props, \
            merge_part(arrays, 1, act_weights), \
@@ -71,7 +71,7 @@ def merge_scores(vid):
            merge_part(arrays, 3, reg_weights)
 
 print('Merge detection scores from {} sources...'.format(len(score_pickle_list)))
-detection_scores = {k: merge_scores(k) for k in score_pickle_list[0]}
+detection_scores = {k: merge_scores(k) for k in score_pickle_list[0]} # save_dict if no merge
 print('Done.')
 
 dataset = PGCNDataSet(dataset_configs, graph_configs,
@@ -102,20 +102,20 @@ def gen_detection_results(video_id, score_tp):
     reg_scores = score_tp[3]
     if reg_scores is None:
         reg_scores = np.zeros((len(rel_prop), num_class, 2), dtype=np.float32)
-    reg_scores = reg_scores.reshape((-1, num_class, 2))
+    reg_scores = reg_scores.reshape((-1, num_class, 2)) # (800, 20, 2)
 
     combined_scores = softmax(score_tp[1][:, :])
-    combined_scores = combined_scores[:,1:]
-    combined_scores = combined_scores * np.exp(score_tp[2])
-    keep_idx = np.argsort(combined_scores.ravel())[-top_k:]
+    combined_scores = combined_scores[:,1:] # (800, 20), drop bg_class
+    combined_scores = combined_scores * np.exp(score_tp[2]) # combin cls_score and compl_score with *np.exp()
+    keep_idx = np.argsort(combined_scores.ravel())[-top_k:] # (2000,)
     for k in keep_idx:
-        cls = k % num_class
-        prop_idx = k // num_class
+        cls = k % num_class # 11
+        prop_idx = k // num_class # 626
         if video_id not in dataset_detections[cls]:
             dataset_detections[cls][video_id] = np.array([
                 [rel_prop[prop_idx, 0], rel_prop[prop_idx, 1], combined_scores[prop_idx, cls],
                  reg_scores[prop_idx, cls, 0], reg_scores[prop_idx, cls, 1]]
-            ])
+            ]) # array([[0.20782468, 0.20929548, 0.00374728, 0.06132719, 0.03543705]])
         else:
             dataset_detections[cls][video_id] = np.vstack(
                 [dataset_detections[cls][video_id],
@@ -125,7 +125,7 @@ def gen_detection_results(video_id, score_tp):
 
 print("Preprocessing detections...")
 for k, v in detection_scores.items():
-    gen_detection_results(k, v)
+    gen_detection_results(k, v) # dataset_detections[0]['video_test_0000004'].shape : (36,5)
 print('Done.')
 
 # perform NMS
@@ -156,7 +156,7 @@ if not args.no_regression:
     print("Performing location regression...")
     for cls in range(num_class):
         dataset_detections[cls] = {
-            k: perform_regression(v) for k, v in dataset_detections[cls].items()
+            k: perform_regression(v) for k, v in dataset_detections[cls].items() # only update rel_prop
         }
     print("Regression Done.")
 else:

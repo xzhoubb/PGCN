@@ -24,11 +24,13 @@ class Recorder(object):
         # self.weight_fig_folder = self.save_path + "weight_fig/"
         # if os.path.isfile(self.log_file):
         #     os.remove(self.log_file)
-        if os.path.isfile(self.readme):
-            os.remove(self.readme)
-        if not os.path.isdir(self.code_path):
-            os.mkdir(self.code_path)
-        self.copy_code(dst=self.code_path)
+
+        # if os.path.isfile(self.readme):
+        #     os.remove(self.readme)
+        # if not os.path.isdir(self.code_path):
+        #     os.mkdir(self.code_path)
+        # self.copy_code(dst=self.code_path)
+
         """if os.path.isdir(self.weight_folder):
             shutil.rmtree(self.weight_folder, ignore_errors=True)
         os.mkdir(self.weight_folder)

@@ -1,7 +1,7 @@
 import argparse
 parser = argparse.ArgumentParser(description="PyTorch code to train PGCN")
-parser.add_argument('dataset', type=str, choices=['activitynet1.3', 'thumos14'])
-
+parser.add_argument('dataset', type=str, choices=['activitynet1.3', 'thumos14', 'tianchi'])
+parser.add_argument('cfg', type=str)
 # ========================= Model Configs ==========================
 parser.add_argument('--dropout', '--do', default=0.8, type=float,
                     metavar='DO', help='dropout ratio (default: 0.8)')
@@ -46,7 +46,7 @@ parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
 parser.add_argument('--snapshot_pref', type=str, default="")
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('--gpus', nargs='+', type=int, default=None)
+parser.add_argument('--gpus', nargs='+', type=int, default='2')
 
 
 

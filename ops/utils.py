@@ -1,4 +1,5 @@
 import torch
+import os
 import numpy as np
 import time
 import logging
@@ -15,7 +16,7 @@ def get_logger(args):
     logger.addHandler(handler)
 
     date = time.strftime('%Y%m%d%H%M', time.localtime(time.time()))
-    logfile = args.snapshot_pref+date+'.log'
+    logfile = args.snapshot_pref+date+'.log' # 'ckpts202007122044.log'
     file_handler = logging.FileHandler(logfile, mode='w')
     file_handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
@@ -30,16 +31,21 @@ def get_configs(dataset):
 
 def get_and_save_args(parser):
     args = parser.parse_args()
-    dataset = args.dataset
-
-    default_config = yaml.load(open('./data/dataset_cfg.yaml', 'r'), Loader=yaml.RoundTripLoader)[dataset]
+    dataset = args.dataset # 'thumos14'
+    
+    default_config = yaml.load(open(args.cfg, 'r'), Loader=yaml.RoundTripLoader)[dataset]
+    #default_config = yaml.load(open('./data/dataset_cfg.yaml', 'r'), Loader=yaml.RoundTripLoader)[dataset]
     current_config = vars(args)
     for k, v in current_config.items():
         if k in default_config:
             if (v != default_config[k]) and (v is not None):
                 print(f"Updating:  {k}: {default_config[k]} (default) ----> {v}")
                 default_config[k] = v
-    yaml.dump(default_config, open('./current_configs.yaml', 'w'), indent=4, Dumper=yaml.RoundTripDumper)
+    
+    if not os.path.exists(args.snapshot_pref):
+        os.mkdir(args.snapshot_pref)
+
+    yaml.dump(default_config, open(os.path.join(args.snapshot_pref,'current_configs.yaml'), 'w'), indent=4, Dumper=yaml.RoundTripDumper)
     return default_config
 
 

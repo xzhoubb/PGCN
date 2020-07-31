@@ -5,11 +5,30 @@ import fnmatch
 
 
 def load_proposal_file(filename):
+    '''
+        filename: 'data/bsn_train_proposal_list.txt'
+
+    return:
+        [(vid_0, n_frame_0, gt_boxes_0, pr_boxes_0), ...] len 199 --> 199 video
+    
+            vid: '/home/datasets/THUMOS14/OF_RGB_Val/video_validation_0000154'
+            n_frame: 1572
+            gt_boxes: (label, start_frame, end_frame), [['4', '160', '346'], ['4', '389', '589'], ['4', '639', '876']]
+            pr_boxes: (label, best_iou, overlap_self, start_frame, end_frame), len->825,
+                    best_iou: the maximal IOU of one proposal against any groundtruth instance
+                    overlap_self: the maximal overlap_duration/proposal_duration
+                    [
+                        ['0', '0', '0', '3', '38'], 
+                        ['0', '0', '0', '23', '38'], 
+                        ......
+                        ['0', '0', '0', '1543', '1568']
+                    ]
+    '''
     lines = list(open(filename))
     from itertools import groupby
     groups = groupby(lines, lambda x: x.startswith('#'))
 
-    info_list = [[x.strip() for x in list(g)] for k, g in groups if not k]
+    info_list = [[x.strip() for x in list(g)] for k, g in groups if not k] # len is 199
     
     def parse_group(info):
         offset = 0
