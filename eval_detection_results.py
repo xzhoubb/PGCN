@@ -1,6 +1,7 @@
 import argparse
 import time
 import numpy as np
+from ruamel import yaml
 
 from pgcn_dataset import PGCNDataSet
 from ops.utils import temporal_nms
@@ -32,7 +33,8 @@ parser.add_argument('--score_weights', type=float, default=None, nargs='+')
 
 args = parser.parse_args()
 
-configs = get_configs(args.dataset)
+configs_path = 'data/dataset_cfg.yaml'
+configs = yaml.load(open(configs_path, 'r'), Loader=yaml.RoundTripLoader)[args.dataset]
 dataset_configs = configs['dataset_configs']
 model_configs = configs["model_configs"]
 graph_configs = configs["graph_configs"]
@@ -172,7 +174,17 @@ def ravel_detections(detection_db, cls):
     return df
 
 plain_detections = [ravel_detections(dataset_detections, cls) for cls in range(num_class)]
-
+'''
+dataset_detections: len:20, idx is cls
+    dataset_detections[0]: {
+        "video_test_0000004": (nparray, shape:36*5)
+            array([[ 5.39332996e-02,  7.82823555e-02,  1.93567395e-01, -5.82493171e-02,  2.07700744e-01],
+                ...])
+        ... 
+        }
+detection_list: ['video_test_0001075', 0, 0.009218476429687712, 0.013959746945039514, 0.008411023765802383]
+   ["video-id", "cls","t-start", "t-end", "score"]
+'''
 
 # get gt
 all_gt = pd.DataFrame(dataset.get_all_gt(), columns=["video-id", "cls","t-start", "t-end"])

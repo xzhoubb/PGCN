@@ -182,9 +182,9 @@ def infer_single_sample(dataset, state_dict, stats, iou_dict, dis_dict):
         num_props = 10
         vid: '0004bf664eee696a9032c4a2770e12dc'
         rel_props: rel_props from gtag, torch.Size([10, 2]), 
-                        [0.7452, 0.7746], [prop_start_real, 0.prop_end_real]
+                        [0.7452, 0.7746], [prop_start_real, prop_end_real]
                         prop with unit 1
-        act_scores: (10,54) cls pred grom pgcn
+        act_scores: (10,54) cls pred from pgcn
         comp_scores: (10, 53) comp pred from pgcn
         reg_scores: (10,53,2) reg pred from pgcn
     '''

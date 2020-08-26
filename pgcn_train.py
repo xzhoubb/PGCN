@@ -105,7 +105,7 @@ def main():
     for group in policies:
         logger.info(('group: {} has {} params, lr_mult: {}, decay_mult: {}'.format(
             group['name'], len(group['params']), group['lr_mult'], group['decay_mult'])))
-
+    # polocies: learnable parameters
     optimizer = torch.optim.SGD(policies,
                                 args.lr,
                                 momentum=args.momentum,
@@ -154,23 +154,38 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
     end = time.time()
     optimizer.zero_grad()
 
-    ohem_num = train_loader.dataset.fg_per_video
-    comp_group_size = train_loader.dataset.fg_per_video + train_loader.dataset.incomplete_per_video
+    ohem_num = train_loader.dataset.fg_per_video # 1, fg num for one video train
+    comp_group_size = train_loader.dataset.fg_per_video + train_loader.dataset.incomplete_per_video # 7
     for i, (prop_fts, prop_type, prop_labels, prop_reg_targets) in enumerate(train_loader):
-        # measure data loading time
-        data_time.update(time.time() - end)
-        batch_size = prop_fts[0].size(0)
-
+        '''
+            prop_fts[0], prop_fts[1]: torch.Size([32, 168, 1024]), torch.Size([32, 168, 3072])
+            prop_type: fg/incomplete/bg,  torch.Size([32, 168])
+            prop_labels: cls id, torch.Size([32, 168])
+            prop_reg_targets: torch.Size([32, 168, 2])
+        '''
+        data_time.update(time.time() - end) # measure data loading time, sample 168 prop
+        batch_size = prop_fts[0].size(0) # 32
+        # batch size 16 -> 32 for 2 gpu ,output final back to 32
         activity_out, activity_target, activity_prop_type, \
         completeness_out, completeness_target, \
         regression_out, regression_labels, regression_target = model((prop_fts[0], prop_fts[1]), prop_labels,
                                                                      prop_reg_targets, prop_type)
 
-        act_loss = act_criterion(activity_out, activity_target)
-        comp_loss = comp_criterion(completeness_out, completeness_target, ohem_num, comp_group_size)
-        reg_loss = regression_criterion(regression_out, regression_labels, regression_target)
+        act_loss = act_criterion(activity_out, activity_target) 
+        # activity_out: (64, 54), 64=32(bs) * 2(fg(1)+bg(1)) 
+        # activity_target:(64), gt cls_id
+        comp_loss = comp_criterion(completeness_out, completeness_target, ohem_num, comp_group_size) 
+        # completeness_out: (224, 53), 224 = 32(bs) * 7(fg(1)+incom(6))
+        # completeness_target:(224), gt_cls_id
+        # ohem:1
+        # comp_group_size:7
+        reg_loss = regression_criterion(regression_out, regression_labels, regression_target) 
+        # regression_out:(32,53,2),32=32(bs)*1(fg)
+        # regression_labels:gt_cls_id,(32)
+        # regression_target:(32,2), 32=32(bs)*1(fg)
 
         loss = act_loss + comp_loss * args.comp_loss_weight + reg_loss * args.reg_loss_weight
+        # args.comp_loss_weight: 0.5,  args.reg_loss_weight:0.5
 
         losses.update(loss.item(), batch_size)
         act_losses.update(act_loss.item(), batch_size)
@@ -192,14 +207,14 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
 
         loss.backward()
 
-        if i % args.iter_size == 0:
+        if i % args.iter_size == 0: # number of iterations before on update
             # scale down gradients when iter size is functioning
             if args.iter_size != 1:
                 for g in optimizer.param_groups:
                     for p in g['params']:
                         p.grad /= args.iter_size
 
-            if args.clip_gradient is not None:
+            if args.clip_gradient is not None: # gradient norm clipping (default: disabled)
                 total_norm = clip_grad_norm(model.parameters(), args.clip_gradient)
                 if total_norm > args.clip_gradient:
                     logger.info("clipping gradient: {} with coef {}".format(total_norm, args.clip_gradient / total_norm))
@@ -209,7 +224,7 @@ def train(train_loader, model, act_criterion, comp_criterion, regression_criteri
             optimizer.step()
             optimizer.zero_grad()
 
-        batch_time.update(time.time() - end)
+        batch_time.update(time.time() - end) # total time for one step(batch)
         end = time.time()
 
         writer.add_scalar('data/loss', losses.val, epoch*len(train_loader)+i+1)

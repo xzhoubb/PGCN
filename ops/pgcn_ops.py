@@ -178,37 +178,50 @@ class OHEMHingeLoss(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, pred, labels, is_positive, ohem_ratio, group_size):
-        n_sample = pred.size()[0]
+        n_sample = pred.size()[0] # fg:32, incomplete:192
         assert n_sample == len(labels), "mismatch between sample size and label size"
         losses = torch.zeros(n_sample)
         slopes = torch.zeros(n_sample)
-        for i in range(n_sample):
-            losses[i] = max(0, 1 - is_positive * pred[i, labels[i] - 1])
-            slopes[i] = -is_positive if losses[i] != 0 else 0
 
-        losses = losses.view(-1, group_size).contiguous()
-        sorted_losses, indices = torch.sort(losses, dim=1, descending=True)
-        keep_num = max(int(group_size * ohem_ratio), 1)
+        '''
+        cal hinge loss, fg(1) is pos, incomp(6) is neg 
+            fg: want pred is certain big, which pred > 1 will no loss
+            neg: want pred is certain small, which pred < -1 will no loss
+        slopes will 0 if no loss
+
+        hingle loss want fg get pred big enough, and incomp small enough
+        '''
+        for i in range(n_sample):
+            losses[i] = max(0, 1 - is_positive * pred[i, labels[i] - 1]) # fg:0.9830
+            slopes[i] = -is_positive if losses[i] != 0 else 0 # fg:-1
+
+        losses = losses.view(-1, group_size).contiguous() # fg:(32, 1), incomplete(32,6)
+        
+        # ohem, keep the top largest loss sample of certain group size
+        sorted_losses, indices = torch.sort(losses, dim=1, descending=True) # for fg, sorted_losses is same as losses
+        keep_num = max(int(group_size * ohem_ratio), 1) # fg:1, incomp:6->1
         loss = torch.zeros(1)
         for i in range(losses.size(0)):
-            loss += sorted_losses[i, :keep_num].sum()
-        ctx.loss_ind = indices[:, :keep_num]
-        ctx.labels = labels
-        ctx.slopes = slopes
-        ctx.shape = pred.size()
-        ctx.group_size = group_size
-        ctx.num_group = losses.size(0)
+            loss += sorted_losses[i, :keep_num].sum() # for incomplete(neg), keep ohem_ratio*gropu_size 
+        
+        ctx.loss_ind = indices[:, :keep_num] # fg:(32, 1), incomple:(32, 1)
+        ctx.labels = labels # fg:(32), incomple:(192) 
+        ctx.slopes = slopes # fg:(32), incomple:(192) 
+        ctx.shape = pred.size() # fg:(32,53), incomple:(192,53)
+        ctx.group_size = group_size # fg:1, incomple:6
+        ctx.num_group = losses.size(0) # fg:32, incomple:32
         return loss.cuda()
 
     @staticmethod
     def backward(ctx, grad_output):
-        labels = ctx.labels
-        slopes = ctx.slopes
+        # only the keep the gradient of hard sample (which loss is large in a group)
+        labels = ctx.labels # fg:(32), incomple:(192) 
+        slopes = ctx.slopes # fg:(32), incomple:(192)
 
-        grad_in = torch.zeros(ctx.shape)
-        for group in range(ctx.num_group):
-            for idx in ctx.loss_ind[group]:
-                loc = idx + group * ctx.group_size
+        grad_in = torch.zeros(ctx.shape) # fg:(32,53), incomple:(192,53)
+        for group in range(ctx.num_group): # len-32
+            for idx in ctx.loss_ind[group]: # 1 (keep num)
+                loc = idx + group * ctx.group_size # keep id in the 192(32*6)
                 grad_in[loc, labels[loc] - 1] = slopes[loc] * grad_output[0].cpu()
         return grad_in.cuda(), None, None, None, None
 
@@ -221,20 +234,26 @@ class CompletenessLoss(torch.nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, pred, labels, sample_split, sample_group_size):
-        pred_dim = pred.size()[1]
-        pred = pred.view(-1, sample_group_size, pred_dim)
-        labels = labels.view(-1, sample_group_size)
+        '''
+        # pred: (224, 53), 224 = 32(bs) * 7(fg(1)+incom(6))
+        # labels:(224), gt_cls_id
+        # sample_split: 1
+        # sample_group_size: 7
+        '''
+        pred_dim = pred.size()[1] # 53
+        pred = pred.view(-1, sample_group_size, pred_dim) # (32,7,53)
+        labels = labels.view(-1, sample_group_size) # (32,7), id of cls
 
-        pos_group_size = sample_split
-        neg_group_size = sample_group_size - sample_split
-        pos_prob = pred[:, :sample_split, :].contiguous().view(-1, pred_dim)
-        neg_prob = pred[:, sample_split:, :].contiguous().view(-1, pred_dim)
+        pos_group_size = sample_split # 1, fg 
+        neg_group_size = sample_group_size - sample_split # 6, incomplete
+        pos_prob = pred[:, :sample_split, :].contiguous().view(-1, pred_dim) # (32*1 ,53)
+        neg_prob = pred[:, sample_split:, :].contiguous().view(-1, pred_dim) # (32*6 ,53)
         pos_ls = OHEMHingeLoss.apply(pos_prob, labels[:, :sample_split].contiguous().view(-1), 1,
                                      1.0, pos_group_size)
         neg_ls = OHEMHingeLoss.apply(neg_prob, labels[:, sample_split:].contiguous().view(-1), -1,
                                      self.ohem_ratio, neg_group_size)
-        pos_cnt = pos_prob.size(0)
-        neg_cnt = max(int(neg_prob.size()[0] * self.ohem_ratio), 1)
+        pos_cnt = pos_prob.size(0) # 32
+        neg_cnt = max(int(neg_prob.size()[0] * self.ohem_ratio), 1) # 32
 
 
         return pos_ls / float(pos_cnt + neg_cnt) + neg_ls / float(pos_cnt + neg_cnt)

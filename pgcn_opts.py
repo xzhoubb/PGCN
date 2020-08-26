@@ -17,7 +17,7 @@ parser.add_argument('-i', '--iter-size', default=1, type=int,
                     metavar='N', help='number of iterations before on update')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate')
-parser.add_argument('--lr_steps', default=[15, 30, 45], type=float, nargs="+",
+parser.add_argument('--lr_steps', default=[30, 50, 60], type=float, nargs="+",
                     metavar='LRSteps', help='epochs to decay learning rate by 10')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')

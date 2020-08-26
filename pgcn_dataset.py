@@ -382,7 +382,7 @@ class PGCNDataSet(data.Dataset):
         selected_props = [((video_id, center_prop), proposal_type)]
 
         center_idx = abs_center_idx
-        for stage_cnt in range(self.child_num+1): # 5 node
+        for stage_cnt in range(self.child_num+1): # self.child_num 4 
             # sample proposal with the largest iou
             props, idxs = self._sample_child_nodes(video_pool, center_idx, video_id) # get 4 child node
             prop_idx_list.extend(idxs)
@@ -485,7 +485,7 @@ class PGCNDataSet(data.Dataset):
             prop: (('video_validation_0000154', <pgcn_dataset.PGCNIn...b93fe2b90>), 0)
         
         Output:
-            prop_indices: array([ start_frame, end_frame, entend_start_frame, extend_end_frame])
+            prop_indices: array([ start_frame, end_frame, extend_start_frame, extend_end_frame])
             label: prop label
             reg_targets: normalized [self.loc_reg, self.size_reg]
             prop[1] : 0 ,prop_type(0-fg, 1-incomp, 2-bg)
@@ -528,6 +528,15 @@ class PGCNDataSet(data.Dataset):
         self.stats = np.array((np.mean(targets, axis=0), np.std(targets, axis=0)))
 
     def get_test_data(self, video):
+        '''
+        return:
+            torch.from_numpy(np.array(rel_prop_list)): list of 
+                [prop_start_real, prop_end_real], prop with unit 1
+            torch.from_numpy(np.array(proposal_tick_list)): list of 
+                [prop_start_fr, prop_end_fr, extend_prop_start_fr, extend_prop_end_fr], prop with unit frame
+            video_id
+            video.num_frames
+        '''
 
         props = video.proposals
         video_id = video.id

@@ -1,10 +1,14 @@
 from itertools import groupby
 from tqdm import tqdm
 
-source_path = 'gtag_train_0_39999_propsal_list.txt'
-output_path = 'traindata_1/gtag_train_35000_39999_propsal_list.txt'
+# source_path = 'gtag_train_0_39999_propsal_list.txt'
+# output_path = 'traindata_1/gtag_train_35000_39999_propsal_list.txt'
+# start_idx = 35000
+# end_idx = 39999
+source_path = 'gtag_train_slowfast_0_39999_propsal_list.txt'
+output_path = 'gtag_train_slowfast_35000_39992_propsal_list.txt'
 start_idx = 35000
-end_idx = 39999
+end_idx = 39992
 
 lines = list(open(source_path))
 groups = groupby(lines, lambda x: x.startswith('#'))
